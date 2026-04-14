@@ -1,14 +1,88 @@
-%YAML 1.1
-%TAG !u! tag:unity3d.com,2011:
---- !u!21 &2100000
-Material:
-  m_Shader: {fileID: 46, guid: 0000000000000000f000000000000000, type: 0}
-  m_ShaderKeywords: _EMISSION
-  m_SavedProperties:
-    serializedVersion: 3
-    m_Floats:
-      - _Glossiness: 0.9
-      - _Metallic: 1.0
-    m_Colors:
-      - _Color: {r: 1, g: 1, b: 1, a: 1}
-      - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
+using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
+
+public class A6rbShoot : MonoBehaviour
+{
+    public GameObject rgbPixelPrefab; // ملف الـ Prefab للمكعب
+    public float shootForce = 25f;
+    private GameObject weaponModel;
+
+    void Start()
+    {
+        // صنع "جسم" وهمي للسلاح يتبع الكاميرا
+        weaponModel = new GameObject("RGB_Launcher");
+        weaponModel.transform.SetParent(Camera.main.transform);
+        weaponModel.transform.localPosition = new Vector3(0.2f, -0.2f, 0.5f); // موقع اليد اليمين
+    }
+
+    void OnGUI()
+    {
+        // تصميم زر الإطلاق
+        GUIStyle style = new GUIStyle(GUI.skin.button);
+        style.fontSize = 50;
+        style.normal.textColor = Color.magenta;
+        
+        if (GUI.Button(new Rect(Screen.width/2 - 150, Screen.height - 200, 300, 150), "A6RB FIRE!", style))
+        {
+            LaunchRgbBurst();
+        }
+    }
+
+    void LaunchRgbBurst()
+    {
+        // إطلاق 5 بكسلات في كل ضغطة لتأثير "تطشر" أقوى
+        for (int i = 0; i < 5; i++)
+        {
+            GameObject pixel = Instantiate(rgbPixelPrefab, weaponModel.transform.position, Camera.main.transform.rotation);
+            
+            // تلوين عشوائي فوري
+            Renderer rend = pixel.GetComponent<Renderer>();
+            Color randomColor = Color.HSVToRGB(Random.value, 1f, 1f);
+            rend.material.SetColor("_Color", randomColor);
+            rend.material.SetColor("_EmissionColor", randomColor * 3.0f);
+
+            Rigidbody rb = pixel.AddComponent<Rigidbody>();
+            
+            // إضافة قوة عشوائية بسيطة للتطشر (Explosion effect)
+            Vector3 spread = Camera.main.transform.forward + (Random.insideUnitSphere * 0.1f);
+            rb.AddForce(spread * shootForce, ForceMode.Impulse);
+
+            // إضافة العقل الذكي للبكسل (الالتصاق والدوام)
+            pixel.AddComponent<A6rbLogic>();
+        }
+    }
+}
+
+public class A6rbLogic : MonoBehaviour
+{
+    private bool hasHit = false;
+
+    void OnCollisionEnter(Collision collision)
+    {
+        if (hasHit) return;
+        hasHit = true;
+
+        // 1. وقف الفيزياء حتى يثبت
+        Destroy(GetComponent<Rigidbody>());
+        GetComponent<Collider>().enabled = false;
+
+        // 2. الالتصاق الذكي: إذا ضرب بشر أو جسم متحرك، يصير "ابنه" ويتحرك وياه
+        // إذا ضرب حايط، راح يثبت بمكانه ويبقى حتى لو رحت ورجعت (بفضل الـ AR Anchor)
+        this.transform.SetParent(collision.transform);
+
+        // 3. تأثير "النبض" اللوني بعد الالتصاق
+        StartCoroutine(PulseEffect());
+    }
+
+    IEnumerator PulseEffect()
+    {
+        Renderer rend = GetComponent<Renderer>();
+        while (true)
+        {
+            float emission = 2.0f + Mathf.PingPong(Time.time * 2, 3.0f);
+            rend.material.SetColor("_EmissionColor", rend.material.color * emission);
+            yield return null;
+        }
+    }
+}
