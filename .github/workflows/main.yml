@@ -1,26 +1,51 @@
-name: Build Ar RPG Game 🚀
+name: Build Ar RPG Game 
 
 on: [push]
 
 jobs:
   buildAndroid:
+    name: Build for Android 🏗️
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      
+      # 1. جلب الكود من المستودع (تحديث v4)
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. تغيير اسم اللعبة تلقائياً
       - name: Set App Name
         run: |
           if [ -f ProjectSettings/ProjectSettings.asset ]; then
             sed -i 's/productName: .*/productName: Ar RPG game/g' ProjectSettings/ProjectSettings.asset
           fi
+          echo "Game name set to Ar RPG game"
 
+      # 3. طلب ملف تفعيل الرخصة (ALF)
       - name: Request Activation File
         uses: game-ci/unity-request-activation-file@v2
         id: get_alf
 
+      # 4. رفع ملف الـ .alf للتحميل (تحديث v4 لحل المشكلة)
       - name: Upload ALF
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: Unity_Activation_File
           path: ${{ steps.get_alf.outputs.filePath }}
+
+      # 5. محاولة بناء الـ APK (ستنجح بعد إضافة الـ UNITY_LICENSE في الـ Secrets)
+      - name: Build Android APK
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          targetPlatform: Android
+          androidIconPath: Assets/icons.png
+
+      # 6. رفع ملف الـ APK النهائي
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ar_RPG_Game_Build
+          path: build/Android
           
